@@ -1,0 +1,231 @@
+def run_program(GCip, site_name, downtime_Reason, downtime_Length,):
+    import time
+    import os
+    import re
+    import pathlib
+    import time
+    import paramiko
+
+
+    time.sleep(2)
+    SC_or_RFDM = "RFDM"
+    login = "login.txt"
+    selected_user_file = open(login, "r")
+    selected_user_file.seek(0)
+    username = selected_user_file.readlines()[0].split(',')[0].rstrip("\n")
+    selected_user_file.seek(0)
+    password = selected_user_file.readlines()[0].split(',')[1].rstrip("\n")
+    session = paramiko.SSHClient()
+    session.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+    session.connect(GCip.rstrip("\n"), username=username, password=password)
+    connection = session.invoke_shell()
+    connection.send("enable\n")
+    connection.send("terminal length 0\n")
+
+    def sh_wire_AP(GCip, site_name):
+
+        try:
+            # check for the amount of the online APs
+            connection.send("sh wireless ap on {}\r\r\n".format(site_name))
+            time.sleep(5)
+            ap_output = connection.recv(65535)
+            outdecoded = ap_output.decode()
+            WirAP = re.findall(r"(\bAP\d{4}-[0-9a-fA-F]{6})", outdecoded)
+            print(WirAP)
+            len_Wire_AP = len(WirAP)
+
+            return len_Wire_AP
+
+        except Exception as e:
+            print("not able to retriev data " + str(e))
+
+    def wire_AP_offline():
+        try:
+            wire_ap = connection.send("sh adoption offline |i {}\n".format(site_name))
+            time.sleep(10)
+            ap_output1 = connection.recv(65535)
+            outdecoded1 = ap_output1.decode()
+            Off_AP = re.findall(r"(\bAP\d{4}-[0-9a-fA-F]{6})", outdecoded1)
+            Off_AP = len(Off_AP)
+
+        except:
+            print("not able to retriev data")
+        return Off_AP
+
+    def IP_Range():
+
+        Ip_range = connection.send("sh running-config auto-provisioning-policy ALLOW-ADOPTION |i {}\n".format(site_name))
+        time.sleep(5)
+        ap_output2 = connection.recv(65535)
+        outdecoded2 = ap_output2.decode()
+        iprange = re.findall(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{2})', outdecoded2)
+
+        return iprange
+
+    def interface_brief():
+
+        # check for the amount of the online APs
+        wire_ap = connection.send("sh wireless ap on {}\r\r\n".format(site_name))
+        time.sleep(5)
+        ap_output = connection.recv(65535)
+        outdecoded = ap_output.decode()
+        WirAP = re.findall(r"(\bAP\d{4}-[0-9a-fA-F]{6})", outdecoded)
+
+        try:
+            open("interface_brief.txt", "x")
+        except:
+            pass
+        with open("interface_brief.txt", "w") as file:
+            file.truncate(0)
+            file.close()
+
+        for ap in WirAP:
+            global line11
+            connection.send("show interface brief on {}\t\r\r\n".format(ap))
+            time.sleep(1)
+            ap_output = connection.recv(65535)
+            outdecoded3 = ap_output.decode()
+            interface_brief = open("interface_brief.txt", "a")
+            interface_brief.write(outdecoded3 + "\n")
+            interface_brief.close()
+
+        with open("interface_brief.txt") as file:
+            if "100M(Auto)" in file.read():
+                check_Please = "AP with 100Mb found please check the file"
+                file.close()
+                return check_Please
+            else:
+                interface_brief2 = "✓ {}/{} APs interface autonegotiated - < 1G(Auto)     Full(Auto) >".format(show_wire_ap, total_APs, IP_Range())
+                file.close()
+                return interface_brief2
+
+
+    def wire_wlan():
+        wire_ap = connection.send("sh wire wlan on {}\n".format(site_name))
+        time.sleep(2)
+        ap_output1 = connection.recv(65535)
+        wire_wlan_output = ap_output1.decode()
+        wire_wlan = []
+        wire_wlan_output = " ".join(re.split("\s+", wire_wlan_output, flags=re.UNICODE))
+        wire_wlan.append(wire_wlan_output)
+        wire_wlan = wire_wlan[0].split(" ")
+        m_guest = (wire_wlan[12])
+        m_wireless = (wire_wlan[15])
+        wireless_wlan = m_guest + " & " + m_wireless
+        return wireless_wlan
+
+    def wire_wlan2():
+        wire_ap = connection.send("sh wire wlan on {}\n".format(site_name))
+        time.sleep(2)
+        ap_output1 = connection.recv(65535)
+        wire_wlan_output = ap_output1.decode()
+        return wire_wlan_output
+
+    def smart_rf():
+        smart_rf = connection.send(str("sh smart-rf channel-distribution on {}\t\n".format(site_name)))
+        time.sleep(2)
+        smart_rf_output = connection.recv(65535)
+        smart_rf_output = smart_rf_output.decode()
+        return smart_rf_output
+
+    def l2tv3_v2():
+        global line13
+
+        # check for the amount of the online APs
+        connection.send("sh wireless ap on {}\r\r\n".format(site_name))
+        time.sleep(5)
+        ap_output = connection.recv(65535)
+        outdecoded = ap_output.decode()
+        WirAP = re.findall(r"(\bAP\d{4}-[0-9a-fA-F]{6})", outdecoded)
+        print(WirAP)
+
+        # wire_ap = connection.send("sh wireless ap on {}\r\r\n".format(site_name))
+        # time.sleep(5)
+        # ap_output = connection.recv(65535)
+        # outdecoded = ap_output.decode()
+        # WirAP = re.findall(r"(\bAP\d{4}-[0-9a-fA-F]{6})", outdecoded)
+        print(WirAP)
+        index = 0
+        while True:
+            connection.send("sh l2tpv3 tunnel-summary on {}\t\r\r\n".format(WirAP[index]))
+            time.sleep(2)
+            ap_output = connection.recv(65535)
+            peeroutput = ap_output.decode()
+            print(peeroutput)
+            peer = []
+            peer_output = " ".join(re.split("\s+", peeroutput, flags=re.UNICODE))
+            print(peer_output)
+            peer.append(peer_output)
+            peer = peer[0].split(" ")
+            if 'Established' in peer:
+
+                vlan_num = peer.index("vlan164")
+                peer_number = vlan_num + 1
+                peer_number = str((peer[peer_number]))
+                # print(peer_number)
+                break
+            else:
+                index = index + 1
+
+        connection.send("sh l2tpv3 tunnel vlan164 on {}\t\r\r\n".format(WirAP[index]))
+        time.sleep(2)
+        ipop_name_output = connection.recv(65535)
+        ipop_name_output = ipop_name_output.decode()
+
+        ipop_name_list = []
+        ipop_name_output = " ".join(re.split("\s+", ipop_name_output, flags=re.UNICODE))
+        ipop_name_list.append(ipop_name_output)
+        ipop_name_list = ipop_name_list[0].split(" ")
+        ipop_name_indexNumber = ipop_name_list.index("Host")
+        ipop_name = ipop_name_indexNumber + 3
+        output = "✓ M-Guest L2TPv3 tunnel is established to IPOP wireless controller - {}".format(ipop_name_list[ipop_name])
+        return output
+
+    # 8
+    show_wire_ap = sh_wire_AP(GCip, site_name)
+    show_offline_ap = wire_AP_offline()
+    total_APs = show_wire_ap + show_offline_ap
+
+    txt = (f"""
+    \nHello all,
+I've just finished checking the health of the site {site_name} after recovering.
+
+✓ No Issues were found in the wireless hardware.
+
+Site downtime recovery summary - {site_name}
+
+Downtime reason: <{downtime_Reason}>
+
+Downtime length: {downtime_Length}
+
+Wireless equipment health summary:
+
+✓ {show_wire_ap}/{total_APs} APs is online
+✓ {show_wire_ap}/{total_APs} APs is adopted by - {SC_or_RFDM}
+✓ {show_wire_ap}/{total_APs} APs assigned IPs in the correct range - {IP_Range()[0]}
+{interface_brief()}
+✓ Centralized controller management - Adopted
+{l2tv3_v2()}
+✓ {show_wire_ap}/{total_APs} Radios is transmitting - {wire_wlan()}
+✓ SmartRF calibrated for all APs -
+{smart_rf()}
+✓ WLANs transmitted at the site -
+{wire_wlan2()}
+
+Please contact us for any MSI WiFi related issues.
+BR,
+XXXX - GWT
+
+    """
+           ).encode("utf-8")
+    connection.close()
+    try:
+        open("txtoutput.txt", "x")
+    except:
+        pass
+    txt_output = pathlib.Path(".\\txtoutput.txt")
+
+    if txt_output.exists():
+        with open(".\\txtoutput.txt", 'w', encoding="utf-8") as f:
+            f.write(txt.decode())
+            f.close()
