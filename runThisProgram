@@ -1,0 +1,241 @@
+import tkinter as tk
+from tkinter.ttk import Progressbar
+from tkinter import ttk, messagebox
+import time
+import pathlib
+import os
+from program import run_program
+import sys
+try:
+    import threading
+except ImportError:
+    os.system(os.path.dirname(sys.executable) + "\\" + "python.exe" + ' -m pip install threading')
+    time.sleep(5)
+    import threading
+
+LARGE_FONT = ("Verdana", 10)
+class site_survey_automation(tk.Tk):
+
+    def __init__(self, *args, **kwargs):
+        tk.Tk.__init__(self, *args, **kwargs)
+        tk.Tk.iconbitmap(self, default=".\\GWT icon.ico")
+        tk.Tk.wm_title(self, "Automation to Site survey")
+        tk.Tk.geometry(self, "430x300")
+        container = tk.Frame(self)
+        container.pack(side="top", fill="both", expand=True)
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+
+        self.frames = {}
+
+        for F in (StartPage, login_page, input_data_page, finishPage, exit_page, waiting_page):
+            frame = F(container, self)
+            self.frames[F] = frame
+            frame.grid(row=0, column=0, sticky='nsew')
+
+        self.show_frame(StartPage)
+
+    def show_frame(self, cont):
+        frame = self.frames[cont]
+        frame.tkraise()
+
+
+def login_file(controller, login_page, input_data_page):
+    login = pathlib.Path("login.txt")
+    if login.exists():
+        # print("login file is found")
+        controller.show_frame(login_page)
+    else:
+        controller.show_frame(input_data_page)
+
+
+class StartPage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        import sys
+        try:
+            import paramiko
+        except ImportError:
+            messagebox.showinfo("Information", "you missing one package please press ok and"
+                                               " wait couple seconds")
+            os.system(os.path.dirname(sys.executable) + "\\" + "python.exe" + ' -m pip install paramiko')
+
+        tk.Frame.__init__(self, parent)
+        label = ttk.Label(self, text="do you have a login file", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+        button1 = ttk.Button(self, text="Yes",
+                             command=lambda: login_file(controller, input_data_page, login_page)).place(x=75, y=200)
+
+        button2 = ttk.Button(self, text="No",
+                             command=lambda: controller.show_frame(login_page)).place(x=250, y=200)
+        login = pathlib.Path("login.txt")
+
+
+# if press no or yes but file was not found.
+
+class login_page(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        label = ttk.Label(self, text="insert your coreID and Password", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+        name_var = tk.StringVar()
+        passw_var = tk.StringVar()
+
+        def save():
+            name = name_var.get()
+            password = passw_var.get()
+            f = open("login.txt", "w+")
+            f.write(name + "," + password)
+            f.close()
+
+        input_lableUSER = tk.Label(self, text="UserName: ").place(x=75, y=150)
+        input_lablePASS = tk.Label(self, text="Password: ").place(x=75, y=175)
+        USER_input_box = tk.Entry(self, textvariable=name_var, bd=5).place(x=150, y=150)
+        PASS_input_box = tk.Entry(self, textvariable=passw_var, bd=5).place(x=150, y=175)
+
+        button1 = ttk.Button(self, text="save",
+                             command=lambda: [save(), controller.show_frame(input_data_page)]).place(x=115, y=250)
+
+
+class input_data_page(tk.Frame):
+
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        label = ttk.Label(self, text="Please fill up the required info", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+        def quit():
+            app.quit()
+
+        # 1) rfdm or site controler
+        options_of_RFDM_OR_SC = ["RFDM"]
+        clicked1 = tk.StringVar(self)
+        clicked1.set(options_of_RFDM_OR_SC[0])
+        # 2) what is the site name
+        SITE_NAME_var = tk.StringVar()
+        # 3) downtime reason
+        options_of_DOWNTIME_REASON = ["WAN Outage", "Power outage", "network outage", "wifi outage", "maintenance"]
+        clicked2 = tk.StringVar(self)
+        clicked2.set(options_of_DOWNTIME_REASON[0])
+        # 4) how long it was offline
+        MIN_var = tk.StringVar()
+
+        input_lableRFDM = tk.Label(self, text="Is it site with SC or RFDM? ").place(x=25, y=150)
+        RFDM_drop = tk.OptionMenu(self, clicked1, *options_of_RFDM_OR_SC).place(x=200, y=145)
+
+        input_lableSITE_NAME = tk.Label(self, text="what is the name of the site? ").place(x=25, y=180)
+        SITE_NAME_input_box = tk.Entry(self, textvariable=SITE_NAME_var, bd=5).place(x=200, y=175)
+
+        input_lableDOWNTIME = tk.Label(self, text="what is the Downtime reason? ").place(x=25, y=210)
+        DOWNTIME_drop = tk.OptionMenu(self, clicked2, *options_of_DOWNTIME_REASON).place(x=200, y=205)
+
+        input_lableTIME = tk.Label(self, text="how long it was offline? ").place(x=25, y=240)
+        MIN_input_box = tk.Entry(self, textvariable=MIN_var, bd=5).place(x=200, y=235)
+
+        finLable = tk.Label(self, text="After you'll press submit please wait you'll be prompt to another window.").place(x=15, y=75)
+
+
+        def submit():
+            global GCip, site_name, downtime_Reason, downtime_Length
+
+            sites = ["names of the sites"]
+
+            GCip = "ip address of the global controller"
+            site_name = SITE_NAME_var.get().upper()
+            while True:
+                if site_name in sites:
+                    break
+                elif site_name in sites_with_SC:
+                    messagebox.showinfo("Information", "The site having a SC (not supported yet)")
+                    break
+                else:
+                    messagebox.showinfo("Information", "The site is not existed")
+                    break
+
+            downtime_Reason = clicked2.get()
+            downtime_Length = MIN_var.get()
+            return GCip, site_name, downtime_Reason, downtime_Length
+
+        button1 = ttk.Button(self, text="submit", command=lambda: [submit(), controller.show_frame(waiting_page)]).place(x=115, y=35)
+        button2 = ttk.Button(self, text="exit", command=self.quit).place(x=220, y=35)
+
+
+class waiting_page(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        label = ttk.Label(self, text="please wait until it will finish to execute the program.", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+        def run():
+            run_program(GCip, site_name, downtime_Reason, downtime_Length)
+
+        def step():
+            for i in range(50):
+                self.update_idletasks()
+                pb['value'] += 2
+                time.sleep(1.3)
+                txt['text'] = pb['value'], '%'
+            controller.show_frame(finishPage)
+
+        t1 = threading.Thread(target=run)
+        t2 = threading.Thread(target=step)
+
+        from tkinter import HORIZONTAL
+        pb = Progressbar(
+            self,
+            orient=HORIZONTAL,
+            length=300,
+            mode='determinate'
+        )
+        pb.place(x=60, y=40)
+        txt = tk.Label(
+            self,
+            text='0%',
+            bg='#345',
+            fg='#fff'
+        )
+        txt.place(x=185, y=65)
+        ttk.Button(self, text='Start', command=lambda: [t1.start(), t2.start()]).place(x=160, y=200)
+        button_back = ttk.Button(self, text="back", command=lambda: [controller.show_frame(input_data_page)]).place(x=160, y=250)
+
+
+class finishPage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        label = ttk.Label(self, text="This program was created by Sharon Grinberg.", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+        def Opentxt():
+            osCommandString = "notepad.exe .\\txtoutput.txt"
+            os.system(osCommandString)
+
+        def delet_login_File():
+            try:
+                os.remove("login.txt")
+            except:
+                pass
+
+        #button2 = ttk.Button(self, text="test", command=run).place(x=220, y=35)
+        button2 = ttk.Button(self, text="exit", command=self.quit).place(x=170, y=180)
+
+        button3 = ttk.Button(self, text="delete login file", command=lambda: [delet_login_File(),controller.show_frame(exit_page)]).place(x=170, y=155)
+
+        button3 = ttk.Button(self, text="open txt", command=Opentxt).place(x=170, y=130)
+
+class exit_page(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        label = ttk.Label(self, text="The login file was successfully deleted.", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+        button2 = ttk.Button(self, text="exit", command=self.quit()).place(x=180, y=180)
+
+app = site_survey_automation()
+app.mainloop()
