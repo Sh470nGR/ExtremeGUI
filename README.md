@@ -1,4 +1,4 @@
-# siteSurveyViaSSh
+# Extreme GUI
 connecting to Extreme controller and checking if the Access points are working properly
 
 instractions:
