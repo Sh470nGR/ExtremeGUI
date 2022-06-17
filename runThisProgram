@@ -141,10 +141,13 @@ class input_data_page(tk.Frame):
 
         def submit():
             global GCip, site_name, downtime_Reason, downtime_Length
-
+               
+                # enter sites names with , between the sites #
             sites = ["names of the sites"]
-
+            
+                # insert your controller IP # 
             GCip = "ip address of the global controller"
+            
             site_name = SITE_NAME_var.get().upper()
             while True:
                 if site_name in sites:
