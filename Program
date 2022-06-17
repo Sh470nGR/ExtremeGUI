@@ -212,10 +212,6 @@ Wireless equipment health summary:
 ✓ WLANs transmitted at the site -
 {wire_wlan2()}
 
-Please contact us for any MSI WiFi related issues.
-BR,
-XXXX - GWT
-
     """
            ).encode("utf-8")
     connection.close()
